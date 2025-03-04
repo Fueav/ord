@@ -335,6 +335,18 @@ impl RuneUpdater<'_, '_, '_> {
           None => println!("Failed to decipher the artifact."),
         }
 
+        println!("Json Data : {}",json!({
+          "block": self.height,
+          "txid": txid,
+          "tx_index": tx_index,
+          "artifact": Runestone::decipher(tx),
+          "pointer_balances": pointer_balances_,
+          "pointer": real_pointer,
+          "entries": entries,
+          "burned": burned_,
+          "outputs": outputs
+        }));
+
         println!("--------------------------------------");
         rune_txs.push(json!({
           "block": self.height,
