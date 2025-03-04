@@ -2637,6 +2637,7 @@ dependencies = [
  "tokio-util 0.7.15",
  "tower-http",
  "unindent",
+ "ureq",
  "urlencoding",
 ]
 
@@ -3986,6 +3987,25 @@ name = "update-contributors"
 version = "0.0.0"
 dependencies = [
  "regex",
+]
+
+[[package]]
+name = "ureq"
+version = "2.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02d1a66277ed75f640d608235660df48c8e3c19f3b4edb6a263315626cc3c01d"
+dependencies = [
+ "base64 0.22.1",
+ "encoding_rs",
+ "flate2",
+ "log",
+ "once_cell",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "url",
+ "webpki-roots",
 ]
 
 [[package]]

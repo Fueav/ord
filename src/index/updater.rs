@@ -6,10 +6,15 @@ use {
     broadcast::{self, error::TryRecvError},
     mpsc::{self},
   },
+  serde_json::{Value, json},
+  ureq::{Error, Response},
+  std::thread::sleep,
 };
 
 mod inscription_updater;
 mod rune_updater;
+
+const PUSH_BACKOFF_FACTOR: Duration = Duration::from_secs(1);
 
 pub(crate) struct BlockData {
   pub(crate) header: Header,
@@ -329,13 +334,17 @@ impl Updater<'_> {
       timestamp(block.header.time.into()),
       block.txdata.len()
     );
-
+    let mut rune_txs: Option<Vec<Value>> = None;
+    let mut inscription_txs: Option<Vec<Value>> = None;
     let mut height_to_block_header = wtx.open_table(HEIGHT_TO_BLOCK_HEADER)?;
     let mut inscription_id_to_sequence_number =
       wtx.open_table(INSCRIPTION_ID_TO_SEQUENCE_NUMBER)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
     if self.index.index_inscriptions || self.index.index_addresses || self.index.index_sats {
+      if let Some(_) = self.index.settings.inscription_tx_push_url() {
+        inscription_txs = Some(Vec::new());
+      }
       self.index_utxo_entries(
         &block,
         txout_receiver,
@@ -346,6 +355,7 @@ impl Updater<'_> {
         &mut statistic_to_count,
         &mut sat_ranges_written,
         &mut outputs_in_block,
+        &mut inscription_txs,
       )?;
     }
 
@@ -355,6 +365,10 @@ impl Updater<'_> {
       let mut rune_to_rune_id = wtx.open_table(RUNE_TO_RUNE_ID)?;
       let mut sequence_number_to_rune_id = wtx.open_table(SEQUENCE_NUMBER_TO_RUNE_ID)?;
       let mut transaction_id_to_rune = wtx.open_table(TRANSACTION_ID_TO_RUNE)?;
+
+      if let Some(_) = self.index.settings.rune_tx_push_url() {
+        rune_txs = Some(Vec::new());
+      }
 
       let runes = statistic_to_count
         .get(&Statistic::Runes.into())?
@@ -382,7 +396,7 @@ impl Updater<'_> {
       };
 
       for (i, (tx, txid)) in block.txdata.iter().enumerate() {
-        rune_updater.index_runes(u32::try_from(i).unwrap(), tx, *txid)?;
+        rune_updater.index_runes(u32::try_from(i).unwrap(), tx, *txid, &mut rune_txs)?;
       }
 
       rune_updater.update()?;
@@ -392,6 +406,65 @@ impl Updater<'_> {
 
     self.height += 1;
     self.outputs_traversed += outputs_in_block;
+
+    if let Some(rune_tx_push_url) = self.index.settings.rune_tx_push_url() {
+      if let Some(mut rune_txs) = rune_txs.clone() {
+        let tx_count = rune_txs.len();
+        if tx_count > 0 || self.index.settings.push_on_empty() {
+          let push_start = Instant::now();
+          // push mark data to server let it know that this block has no inscription txs
+          if self.index.settings.push_on_empty() && tx_count == 0 {
+            log::info!("Will push empty mark data to server on height {}", self.height - 1);
+            rune_txs.push(json!({
+              "empty_mark": true,
+              "block": self.height - 1, // self.height has already plus 1
+            }));
+          }
+          let data = Value::Array(rune_txs);
+          let mut reorg = false;
+
+          loop {
+            match self.index.block_hash(self.height.checked_sub(1))? {
+              Some(index_prev_blockhash) => {
+                reorg = index_prev_blockhash != block.header.prev_blockhash;
+              }
+              _ => {}
+            }
+            if reorg {
+              break;
+            }
+            match self.push_request(&rune_tx_push_url, &data) {
+              Ok(_response) => {
+                /* it worked */
+                break;
+              },
+              Err(Error::Status(_code, _response)) => {
+                /* the server returned an unexpected status
+                  code (such as 400, 500 etc) */
+                log::error!("index server response with code {_code}, retry.");
+              }
+              Err(_err) => {
+                /* some kind of io/transport error */
+                log::error!("index server response exception, err: {_err}, retry.");
+              }
+            }
+
+            sleep(PUSH_BACKOFF_FACTOR);
+          }
+          if !reorg {
+            log::info!(
+              "Pushed {} rune txs to server in {} ms",
+              tx_count,
+              (Instant::now() - push_start).as_millis(),
+            );
+          } else {
+            log::info!(
+              "Detected reorg, do not push rune txs to server an let ord server do its work"
+            )
+          }
+        }
+      }
+    }
 
     log::info!(
       "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
@@ -412,7 +485,8 @@ impl Updater<'_> {
     statistic_to_count: &mut Table<'wtx, u64, u64>,
     sat_ranges_written: &mut u64,
     outputs_in_block: &mut u64,
-  ) -> Result<(), Error> {
+    inscription_txs: &mut Option<Vec<Value>>,
+  ) -> Result<(), anyhow::Error> {
     let mut height_to_last_sequence_number = wtx.open_table(HEIGHT_TO_LAST_SEQUENCE_NUMBER)?;
     let mut home_inscriptions = wtx.open_table(HOME_INSCRIPTIONS)?;
     let mut inscription_number_to_sequence_number =
@@ -425,7 +499,7 @@ impl Updater<'_> {
     let mut sequence_number_to_inscription_entry =
       wtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
     let mut transaction_id_to_transaction = wtx.open_table(TRANSACTION_ID_TO_TRANSACTION)?;
-
+    let mut sequence_number_to_satpoint = wtx.open_table(SEQUENCE_NUMBER_TO_SATPOINT)?;
     let index_inscriptions = self.height >= self.index.settings.first_inscription_height()
       && self.index.index_inscriptions;
 
@@ -520,6 +594,8 @@ impl Updater<'_> {
       transaction_buffer: Vec::new(),
       transaction_id_to_transaction: &mut transaction_id_to_transaction,
       unbound_inscriptions,
+      index: self.index,
+      sequence_number_to_satpoint: &mut sequence_number_to_satpoint,
     };
 
     let mut coinbase_inputs = Vec::new();
@@ -645,6 +721,7 @@ impl Updater<'_> {
           utxo_cache,
           self.index,
           input_sat_ranges.as_ref(),
+          inscription_txs,
         )?;
       }
 
@@ -716,6 +793,66 @@ impl Updater<'_> {
       &inscription_updater.unbound_inscriptions,
     )?;
 
+
+    if let Some(inscription_tx_push_url) = self.index.settings.inscription_tx_push_url() {
+      if let Some(mut inscription_txs) = inscription_txs.take() {
+        let tx_count = inscription_txs.len();
+        if tx_count > 0 || self.index.settings.push_on_empty() {
+          let push_start = Instant::now();
+          // push mark data to server let it know that this block has no inscription txs
+          if self.index.settings.push_on_empty() && tx_count == 0 {
+            log::info!("Will push empty mark data to server on height {}", self.height - 1);
+            inscription_txs.push(json!({
+              "empty_mark": true,
+              "block": self.height - 1, // self.height has already plus 1
+            }));
+          }
+          let data = Value::Array(inscription_txs);
+          let mut reorg = false;
+
+          loop {
+            match self.index.block_hash(self.height.checked_sub(1))? {
+              Some(index_prev_blockhash) => {
+                reorg = index_prev_blockhash != block.header.prev_blockhash;
+              }
+              _ => {}
+            }
+            if reorg {
+              break;
+            }
+            match self.push_request(&inscription_tx_push_url, &data) {
+              Ok(_response) => {
+                /* it worked */
+                break;
+              },
+              Err(Error::Status(_code, _response)) => {
+                /* the server returned an unexpected status
+                  code (such as 400, 500 etc) */
+                log::error!("index server response with code {_code}, retry.");
+              }
+              Err(_err) => {
+                /* some kind of io/transport error */
+                log::error!("index server response exception, err: {_err}, retry.");
+              }
+            }
+
+            sleep(PUSH_BACKOFF_FACTOR);
+          }
+          if !reorg {
+            log::info!(
+              "Pushed {} inscription txs to server in {} ms",
+              tx_count,
+              (Instant::now() - push_start).as_millis(),
+            );
+          } else {
+            log::info!(
+              "Detected reorg, do not push inscription txs to server an let ord server do its work"
+            )
+          }
+        }
+      }
+    }
+
     Ok(())
   }
 
@@ -727,6 +864,15 @@ impl Updater<'_> {
     for (vout, txout) in tx.output.iter().enumerate() {
       output_utxo_entries[vout].push_script_pubkey(txout.script_pubkey.as_bytes(), self.index);
     }
+  }
+
+  fn push_request(&mut self, url: &str, data: &Value) -> Result<Response, Error> {
+    let response = ureq::post(url)
+        .timeout(Duration::from_secs(1800))
+        .set("Content-Type", "application/json")
+        .send_json(ureq::json!(&data));
+
+    response
   }
 
   fn index_transaction_sats(

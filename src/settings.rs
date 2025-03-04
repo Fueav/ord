@@ -30,6 +30,12 @@ pub struct Settings {
   server_password: Option<String>,
   server_url: Option<String>,
   server_username: Option<String>,
+  inscription_tx_push_url: Option<String>,
+  push_on_empty: bool,
+  push_only_first_transfer: bool,
+  target_protocol: Option<String>,
+
+  rune_tx_push_url: Option<String>,
 }
 
 impl Settings {
@@ -145,6 +151,12 @@ impl Settings {
       server_password: self.server_password.or(source.server_password),
       server_url: self.server_url.or(source.server_url),
       server_username: self.server_username.or(source.server_username),
+      inscription_tx_push_url: self.inscription_tx_push_url.or(source.inscription_tx_push_url),
+      push_on_empty: self.push_on_empty || source.push_on_empty,
+      push_only_first_transfer: self.push_only_first_transfer || source.push_only_first_transfer,
+      target_protocol: self.target_protocol.or(source.target_protocol),
+
+      rune_tx_push_url: self.rune_tx_push_url.or(source.rune_tx_push_url),
     }
   }
 
@@ -183,6 +195,11 @@ impl Settings {
       server_password: options.server_password,
       server_url: None,
       server_username: options.server_username,
+      inscription_tx_push_url: options.inscription_tx_push_url,
+      push_on_empty: options.push_on_empty,
+      push_only_first_transfer: options.push_only_first_transfer,
+      target_protocol: options.target_protocol,
+      rune_tx_push_url: options.rune_tx_push_url,
     }
   }
 
@@ -273,6 +290,12 @@ impl Settings {
       server_password: get_string("SERVER_PASSWORD"),
       server_url: get_string("SERVER_URL"),
       server_username: get_string("SERVER_USERNAME"),
+      inscription_tx_push_url: get_string("INSCRIPTION_TX_PUSH_URL"),
+      push_on_empty: get_bool("push_on_empty"),
+      push_only_first_transfer: get_bool("PUSH_ONLY_FIRST_TRANSFER"),
+      target_protocol: get_string("TARGET_PROTOCOL"),
+
+      rune_tx_push_url: get_string("RUN_TX_PUSH_URL"),
     })
   }
 
@@ -305,6 +328,12 @@ impl Settings {
       server_password: None,
       server_url: Some(server_url.into()),
       server_username: None,
+      inscription_tx_push_url: None,
+      push_on_empty: false,
+      push_only_first_transfer: false,
+      target_protocol: None,
+
+      rune_tx_push_url: None,
     }
   }
 
@@ -381,6 +410,12 @@ impl Settings {
       server_password: self.server_password,
       server_url: self.server_url,
       server_username: self.server_username,
+      inscription_tx_push_url: self.inscription_tx_push_url,
+      push_on_empty: self.push_on_empty,
+      push_only_first_transfer: self.push_only_first_transfer,
+      target_protocol: self.target_protocol,
+
+      rune_tx_push_url: self.rune_tx_push_url,
     })
   }
 
@@ -598,6 +633,25 @@ impl Settings {
 
   pub fn server_url(&self) -> Option<&str> {
     self.server_url.as_deref()
+  }
+  pub(crate) fn inscription_tx_push_url(&self) -> Option<String> {
+    self.inscription_tx_push_url.clone()
+  }
+
+  pub(crate) fn push_on_empty(&self) -> bool {
+    self.push_on_empty
+  }
+
+  pub(crate) fn push_only_first_transfer(&self) -> bool {
+    self.push_only_first_transfer
+  }
+
+  pub(crate) fn target_protocol(&self) -> Option<String> {
+    self.target_protocol.clone()
+  }
+
+  pub(crate) fn rune_tx_push_url(&self) -> Option<String> {
+    self.rune_tx_push_url.clone()
   }
 }
 
@@ -1133,6 +1187,11 @@ mod tests {
         server_password: Some("server password".into()),
         server_url: Some("server url".into()),
         server_username: Some("server username".into()),
+        inscription_tx_push_url: None,
+        push_on_empty: false,
+        push_only_first_transfer: false,
+        target_protocol: None,
+        rune_tx_push_url: None,
       }
     );
   }
@@ -1198,6 +1257,11 @@ mod tests {
         server_password: Some("server password".into()),
         server_url: None,
         server_username: Some("server username".into()),
+         inscription_tx_push_url: None,
+        push_on_empty: false,
+        push_only_first_transfer: false,
+        target_protocol: None,
+        rune_tx_push_url: None,
       }
     );
   }
