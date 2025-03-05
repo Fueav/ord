@@ -573,24 +573,19 @@ impl InscriptionUpdater<'_, '_> {
 
     output_utxo_entry.push_inscription(sequence_number, satpoint.offset, index);
 
-    self
-        .sequence_number_to_satpoint
-        .insert(sequence_number, &satpoint)?;
-
     if let Some(inscription_txs) = inscription_txs {
-      self.append_inscription_tx(inscription_txs, flotsam_cp)?;
+      self.append_inscription_tx(inscription_txs, flotsam_cp, satpoint)?;
     }
     Ok(())
   }
 
-  fn append_inscription_tx(&mut self, inscription_txs: &mut Vec<Value>, flotsam: Flotsam) -> Result {
+  fn append_inscription_tx(&mut self, inscription_txs: &mut Vec<Value>, flotsam: Flotsam, satpoint: SatPoint) -> Result {
     let inscription_id = flotsam.inscription_id;
     let origin = flotsam.origin;
 
     let seq_number = self.id_to_sequence_number.get(inscription_id.store())?.unwrap().value();
     let entry = self.sequence_number_to_entry.get(seq_number)?.map(|_entry| {InscriptionEntry::load(_entry.value())}).unwrap();
 
-    let satpoint = self.sequence_number_to_satpoint.get(seq_number)?.map(|_entry| {SatPoint::load(*_entry.value())}).unwrap();
 
     // only push the inscribe and first transfer transaction to server to reduce io costs.
     if self.index.settings.push_only_first_transfer() {
