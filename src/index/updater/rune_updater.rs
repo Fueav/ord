@@ -316,38 +316,6 @@ impl RuneUpdater<'_, '_, '_> {
 
     if let Some(rune_txs) = rune_txs {
       if entries.len() > 0 {
-        println!("--- Debugging Rune Transactions ---");
-
-        println!("Entries: {:?}", entries);
-        println!("Burned: {:?}", burned_);
-        println!("Pointer Balances: {:?}", pointer_balances_);
-        println!("Outputs: {:?}", outputs);
-
-        // 如果有其他可能导致问题的变量，也可以加日志
-        println!("Block Height: {}", self.height);
-        println!("Transaction ID: {:?}", txid);
-        println!("Transaction Index: {}", tx_index);
-        println!("Real Pointer: {}", real_pointer);
-
-        // 额外检查 Runestone 解密的结果
-        match Runestone::decipher(tx) {
-          Some(artifact) => println!("Artifact Deciphered: {:?}", artifact),
-          None => println!("Failed to decipher the artifact."),
-        }
-
-        println!("Json Data : {}",json!({
-          "block": self.height,
-          "txid": txid,
-          "tx_index": tx_index,
-          "artifact": Runestone::decipher(tx),
-          "pointer_balances": pointer_balances_,
-          "pointer": real_pointer,
-          "entries": entries,
-          "burned": burned_,
-          "outputs": outputs
-        }));
-
-        println!("--------------------------------------");
         rune_txs.push(json!({
           "block": self.height,
           "txid": txid,
