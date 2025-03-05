@@ -573,6 +573,9 @@ impl InscriptionUpdater<'_, '_> {
 
     output_utxo_entry.push_inscription(sequence_number, satpoint.offset, index);
 
+    self
+        .sequence_number_to_satpoint
+        .insert(sequence_number, &satpoint)?;
 
     if let Some(inscription_txs) = inscription_txs {
       self.append_inscription_tx(inscription_txs, flotsam_cp)?;
@@ -587,7 +590,7 @@ impl InscriptionUpdater<'_, '_> {
     let seq_number = self.id_to_sequence_number.get(inscription_id.store())?.unwrap().value();
     let entry = self.sequence_number_to_entry.get(seq_number)?.map(|_entry| {InscriptionEntry::load(_entry.value())}).unwrap();
 
-    //let satpoint = self.sequence_number_to_satpoint.get(seq_number)?.map(|_entry| {SatPoint::load(*_entry.value())}).unwrap();
+    let satpoint = self.sequence_number_to_satpoint.get(seq_number)?.map(|_entry| {SatPoint::load(*_entry.value())}).unwrap();
 
     // only push the inscribe and first transfer transaction to server to reduce io costs.
     if self.index.settings.push_only_first_transfer() {
@@ -636,7 +639,7 @@ impl InscriptionUpdater<'_, '_> {
         "vindicated": vindicated,
         "unbound": unbound,
         "reinscription": reinscription,
-        //"location": satpoint.to_string(),
+        "location": satpoint.to_string(),
         "block": self.height,
         "entry": json!({
           "fee": entry.fee,
@@ -649,13 +652,13 @@ impl InscriptionUpdater<'_, '_> {
             None => u64::MAX.to_string(),
           }
         }),
-        // "satpoint": json!({
-        //   "offset": satpoint.offset,
-        //   "outpoint": json!({
-        //     "txid": satpoint.outpoint.txid.to_string(),
-        //     "vout": satpoint.outpoint.vout
-        //   })
-        // }),
+        "satpoint": json!({
+          "offset": satpoint.offset,
+          "outpoint": json!({
+            "txid": satpoint.outpoint.txid.to_string(),
+            "vout": satpoint.outpoint.vout
+          })
+        }),
         "content_type": current_inscription.content_type(),
         "content": content,
         "metadata":  match current_inscription.metadata() {
