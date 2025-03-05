@@ -636,7 +636,7 @@ impl InscriptionUpdater<'_, '_> {
         "vindicated": vindicated,
         "unbound": unbound,
         "reinscription": reinscription,
-        "location": satpoint.to_string(),
+        //"location": satpoint.to_string(),
         "block": self.height,
         "entry": json!({
           "fee": entry.fee,
