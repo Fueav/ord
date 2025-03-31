@@ -98,6 +98,14 @@ impl ParsedEnvelope {
       .map(|envelope| envelope.into())
       .collect()
   }
+
+    pub(crate) fn from_witness(witnesses: Vec<Witness>) -> Vec<Self> {
+        return RawEnvelope::from_witness(&witnesses)
+            .into_iter()
+            .map(|envelope|envelope.into())
+            .collect();
+    }
+
 }
 
 impl RawEnvelope {
@@ -115,6 +123,19 @@ impl RawEnvelope {
 
     envelopes
   }
+
+    pub(crate) fn from_witness(witnesses: &Vec<Witness>) -> Vec<Self> {
+        let mut envelopes = Vec::new();
+        for (i, witness) in witnesses.iter().enumerate() {
+            if let Some(tapscript) = witness.tapscript() {
+                if let Ok(input_envelopes) = Self::from_tapscript(tapscript, i) {
+                    envelopes.extend(input_envelopes);
+                }
+            }
+        }
+        envelopes
+    }
+
 
   fn from_tapscript(tapscript: &Script, input: usize) -> Result<Vec<Self>> {
     let mut envelopes = Vec::new();

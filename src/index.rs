@@ -1066,6 +1066,43 @@ impl Index {
     Ok(Some(balances))
   }
 
+  pub(crate) fn get_rune_balances_for_outpoint(
+    &self,
+    outpoint: OutPoint,
+  ) -> Result<BTreeMap<SpacedRune, Pile>> {
+    let rtx = self.database.begin_read()?;
+
+    let outpoint_to_balances = rtx.open_table(OUTPOINT_TO_RUNE_BALANCES)?;
+
+    let id_to_rune_entries = rtx.open_table(RUNE_ID_TO_RUNE_ENTRY)?;
+
+    let Some(balances) = outpoint_to_balances.get(&outpoint.store())? else {
+      return Ok(BTreeMap::new());
+    };
+
+    let balances_buffer = balances.value();
+
+    let mut balances = BTreeMap::new();
+    let mut i = 0;
+    while i < balances_buffer.len() {
+      let ((id, amount), length) = Index::decode_rune_balance(&balances_buffer[i..]).unwrap();
+      i += length;
+
+      let entry = RuneEntry::load(id_to_rune_entries.get(id.store())?.unwrap().value());
+
+      balances.insert(
+        entry.spaced_rune,
+        Pile {
+          amount,
+          divisibility: entry.divisibility,
+          symbol: entry.symbol,
+        },
+      );
+    }
+
+    Ok(balances)
+  }
+
   pub fn get_rune_balance_map(&self) -> Result<BTreeMap<SpacedRune, BTreeMap<OutPoint, Pile>>> {
     let outpoint_balances = self.get_rune_balances()?;
 
@@ -1380,6 +1417,10 @@ impl Index {
     Ok(ids)
   }
 
+  pub(crate) fn get_raw_transaction(&self, txid: Txid) -> Result<Option<Transaction>> {
+    self.client.get_raw_transaction(&txid, None).into_option()
+  }
+
   pub fn get_inscription_ids_by_sat_paginated(
     &self,
     sat: Sat,
@@ -1577,6 +1618,19 @@ impl Index {
         .map(|(_satpoint, inscription_id)| *inscription_id)
         .collect(),
     ))
+  }
+
+  pub(crate) fn get_inscriptions_on_output(
+    &self,
+    outpoint: OutPoint,
+  ) -> Result<Vec<InscriptionId>> {
+    Ok(
+      self
+          .get_inscriptions_on_output_with_satpoints(outpoint)?.unwrap_or_default()
+          .iter()
+          .map(|(_satpoint, inscription_id)| *inscription_id)
+          .collect(),
+    )
   }
 
   pub fn get_inscriptions_for_outputs(

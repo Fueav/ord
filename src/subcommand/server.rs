@@ -3,6 +3,7 @@ use {
     accept_encoding::AcceptEncoding,
     accept_json::AcceptJson,
     error::{OptionExt, ServerError, ServerResult},
+    rest::Rest
   },
   super::*,
   crate::templates::{
@@ -47,6 +48,7 @@ mod error;
 pub mod query;
 mod r;
 mod server_config;
+mod rest;
 
 enum SpawnConfig {
   Https(AxumAcceptor),
@@ -69,6 +71,13 @@ pub(crate) enum OutputType {
   Inscribed,
   Runic,
 }
+
+#[derive(Deserialize)]
+pub struct RunestoneScriptpubkey {
+  pub hex: String,
+  pub out_len: usize,
+}
+
 
 #[derive(Deserialize)]
 struct Search {
@@ -242,7 +251,17 @@ impl Server {
         .route("/static/{*path}", get(Self::static_asset))
         .route("/status", get(Self::status))
         .route("/tx/{txid}", get(Self::transaction))
-        .route("/update", get(Self::update));
+        .route("/update", get(Self::update))
+
+        .route("/rest/inscription/:inscription_id", get(Rest::inscription))
+        .route("/rest/inscriptions", post(Rest::inscriptions))
+        .route("/rest/sat/:sat", get(Rest::sat))
+        .route("/rest/tx/inscription/:txid", get(Rest::parse_inscriptions))
+        .route("/rest/witness/inscription", post(Rest::parse_inscriptions_from_witness))
+        .route("/rest/outputs", post(Rest::outputs))
+        .route("/rest/rune/tx/:txid", get(Rest::parse_rune))
+        .route("/rest/rune/tx_hex", post(Rest::parse_rune_from_hex))
+        .route("/rest/rune/scriptpubkey", post(Rest::parse_rune_from_scriptpubkey));
 
       // recursive endpoints
       let router = router
