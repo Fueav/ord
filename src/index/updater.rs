@@ -809,7 +809,7 @@ impl Updater<'_> {
           }
           let data = Value::Array(inscription_txs);
           let mut reorg = false;
-
+          log::info!("The length of the data array is: {}", tx_count);
           loop {
             match self.index.block_hash(self.height.checked_sub(1))? {
               Some(index_prev_blockhash) => {
