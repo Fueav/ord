@@ -204,6 +204,7 @@ impl Rest {
         let spent = index.is_output_spent(outpoint)?;
         let output = api::Output::new(
             chain,
+            1,
             option_inscriptions,
             outpoint,
             output,
