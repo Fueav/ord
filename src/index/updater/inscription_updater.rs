@@ -637,7 +637,6 @@ impl InscriptionUpdater<'_, '_> {
         if let Some(body) = current_inscription.clone().into_body() {
           // 1. 将原始 body 编码为 base64 字符串
           let content = general_purpose::STANDARD.encode(&body);
-          log::info!("Base64 编码后的 content: {}", content);
 
           // 2. 将 base64 字符串解码为原始字节
           match general_purpose::STANDARD.decode(&content) {
@@ -645,14 +644,11 @@ impl InscriptionUpdater<'_, '_> {
               // 3. 将字节转换为 UTF-8 字符串
               match String::from_utf8(decoded_bytes) {
                 Ok(decoded_str) => {
-                  log::info!("Base64 解码后的 UTF-8 字符串: {}", decoded_str);
 
                   // 4. 判断是否包含 brc-20
                   if decoded_str.contains("brc-20") {
                     log::info!("This is a brc20 inscription skip that. content: {}", decoded_str);
                     return Ok(());
-                  } else {
-                    log::info!("不包含 brc-20，content: {}", decoded_str);
                   }
                 }
                 Err(err) => {
@@ -701,12 +697,12 @@ impl InscriptionUpdater<'_, '_> {
           })
         }),
         "content_type": current_inscription.content_type(),
-        "content": content,
-        "metadata":  match current_inscription.metadata() {
-          Some(meta) => to_string(&meta)?,
-          _ => "{}".to_owned(),
-        },
-        "metaprotocol": current_inscription.metaprotocol(),
+        //"content": content,
+        // "metadata":  match current_inscription.metadata() {
+        //   Some(meta) => to_string(&meta)?,
+        //   _ => "{}".to_owned(),
+        // },
+        //"metaprotocol": current_inscription.metaprotocol(),
         "old_satpoint": _old_satpoint
     });
     inscription_txs.push(data);
