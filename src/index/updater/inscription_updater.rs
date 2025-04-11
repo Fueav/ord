@@ -629,10 +629,8 @@ impl InscriptionUpdater<'_, '_> {
     };
 
     if let Some(content_type) = current_inscription.content_type() {
-      log::info!("Content-Type: {}", content_type);
 
       if content_type.contains("text") {
-        log::info!("Content-Type 包含 'text'，继续处理");
 
         if let Some(body) = current_inscription.clone().into_body() {
           // 1. 将原始 body 编码为 base64 字符串
@@ -660,14 +658,8 @@ impl InscriptionUpdater<'_, '_> {
               log::info!("Base64 解码失败，错误: {}", err);
             }
           }
-        } else {
-          log::info!("inscription 没有 body");
         }
-      } else {
-        log::info!("Content-Type 不包含 text，跳过: {}", content_type);
       }
-    } else {
-      log::info!("Content-Type 为 None");
     }
 
     let data = json!({
