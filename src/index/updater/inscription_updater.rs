@@ -1,6 +1,7 @@
+use std::string::FromUtf8Error;
 use super::*;
 use serde_json::{Value, json, to_string};
-use base64::{Engine as _, engine::general_purpose};
+use base64::{Engine as _, engine::general_purpose, DecodeError};
 #[derive(Debug, PartialEq, Copy, Clone)]
 enum Curse {
   DuplicateField,
@@ -649,14 +650,10 @@ impl InscriptionUpdater<'_, '_> {
                     return Ok(());
                   }
                 }
-                Err(err) => {
-                  log::info!("Base64 解码成功但不是 UTF-8 字符串，错误: {}", err);
-                }
+                _ => {}
               }
             }
-            Err(err) => {
-              log::info!("Base64 解码失败，错误: {}", err);
-            }
+            _ => {}
           }
         }
       }
