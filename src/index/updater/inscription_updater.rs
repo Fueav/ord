@@ -645,7 +645,7 @@ impl InscriptionUpdater<'_, '_> {
 
                   // 4. 判断是否包含 brc-20
                   if decoded_str.contains("brc-20") {
-                    log::info!("This is a brc20 inscription skip that. content: {}", decoded_str);
+                    //log::info!("This is a brc20 inscription skip that. content: {}", decoded_str);
                     return Ok(());
                   }
                 }
