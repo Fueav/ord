@@ -679,6 +679,7 @@ impl InscriptionUpdater<'_, '_> {
           }
         }),
         "satpoint": json!({
+          "timestamp":self.timestamp,
           "offset": satpoint.offset,
           "outpoint": json!({
             "txid": satpoint.outpoint.txid.to_string(),
