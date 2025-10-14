@@ -248,7 +248,7 @@ impl Rest {
     pub async fn parse_rune_from_scriptpubkey(
         Extension(server_config): Extension<Arc<ServerConfig>>,
         Extension(index): Extension<Arc<Index>>,
-        extract::Text(scriptpubkey_hex): extract::Text<String>,
+        scriptpubkey_hex: String,
     ) -> ServerResult<Json<Value>> {
         use crate::subcommand::server::RUNESTONE_DEFAULT_OUT_LEN;
         let result = Runestone::decipher_from_scriptpubkey(&scriptpubkey_hex, RUNESTONE_DEFAULT_OUT_LEN);
