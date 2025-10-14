@@ -248,10 +248,10 @@ impl Rest {
     pub async fn parse_rune_from_scriptpubkey(
         Extension(server_config): Extension<Arc<ServerConfig>>,
         Extension(index): Extension<Arc<Index>>,
-        extract::Json(runestone_scriptpubkey): extract::Json<RunestoneScriptpubkey>,
+        extract::Text(scriptpubkey_hex): extract::Text<String>,
     ) -> ServerResult<Json<Value>> {
         use crate::subcommand::server::RUNESTONE_DEFAULT_OUT_LEN;
-        let result = Runestone::decipher_from_scriptpubkey(&runestone_scriptpubkey.hex, RUNESTONE_DEFAULT_OUT_LEN);
+        let result = Runestone::decipher_from_scriptpubkey(&scriptpubkey_hex, RUNESTONE_DEFAULT_OUT_LEN);
 
         match result {
             Some(Artifact::Runestone(runestone)) => {
@@ -488,23 +488,27 @@ fn test_response_format() {
 #[test]
 fn test_simplified_api() {
     println!("\n================================================================");
-    println!("  Simplified API - No out_len parameter needed!");
+    println!("  Simplified API - Plain text body!");
     println!("================================================================\n");
 
-    println!("Old request body (removed out_len):");
-    println!("  {{");
-    println!("    \"hex\": \"6a5d0b160100f2df35d60dd00f01\"");
-    println!("  }}\n");
+    println!("Old request format (JSON with hex field):");
+    println!("  Content-Type: application/json");
+    println!("  Body: {{\"hex\": \"6a5d0b160100f2df35d60dd00f01\"}}\n");
 
-    println!("New request body (simplified):");
-    println!("  {{");
-    println!("    \"hex\": \"6a5d0b160100f2df35d60dd00f01\"");
-    println!("  }}\n");
+    println!("New request format (Plain text):");
+    println!("  Content-Type: text/plain");
+    println!("  Body: 6a5d0b160100f2df35d60dd00f01\n");
+
+    println!("curl example:");
+    println!("  curl -X POST http://localhost:80/rest/rune/scriptpubkey \\");
+    println!("    -H \"Content-Type: text/plain\" \\");
+    println!("    -d '6a5d0b160100f2df35d60dd00f01'\n");
 
     println!("Benefits:");
-    println!("  - Simpler API: no need to specify out_len");
-    println!("  - Always works: uses safe default (1000)");
-    println!("  - Less error-prone: clients can't pass wrong values\n");
+    println!("  - Simplest possible: just send the hex string");
+    println!("  - No JSON parsing needed on client side");
+    println!("  - Automatic out_len handling (uses 1000)");
+    println!("  - Less error-prone\n");
 
     println!("================================================================\n");
 }
