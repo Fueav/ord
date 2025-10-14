@@ -75,8 +75,11 @@ pub(crate) enum OutputType {
 #[derive(Deserialize)]
 pub struct RunestoneScriptpubkey {
   pub hex: String,
-  pub out_len: usize,
 }
+
+// 常量：用于解析 Runestone 的默认 output 数量
+// 设置为较大值以确保能够解析所有有效的 Runestone
+const RUNESTONE_DEFAULT_OUT_LEN: usize = 1000;
 
 
 #[derive(Deserialize)]
